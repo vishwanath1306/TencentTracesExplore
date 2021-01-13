@@ -2,8 +2,11 @@ import csv
 import glob
 import math
 from copy import deepcopy
+import logging
+from multiprocessing import Pool
 
-from util import get_array_indices
+
+from util import get_array_indices, load_logging_config, get_op_file_name
 
 
 '''
@@ -25,16 +28,22 @@ epi --> y
 
 '''
 def process_block_trace(filename):
+
     ip_file_fd = open(filename, "r")
     csv_data = csv.reader(ip_file_fd)
 
+    logging.info("Currently processing: {}".format(filename))
 
     array_indices = get_array_indices()
-    
-    
-    for value, data in enumerate(csv_data):
+    output_string = get_op_file_name(filename, op_folder)
+    op_file_fd = open(output_string, "w")
+    op_csv = csv.writer(op_file_fd)
 
-        print(data)
+    for value, data in enumerate(csv_data):
+        
+        if value % 1000000 == 0:
+            logging.info("Finished file: {} and {} rows".format(filename, value))
+        # print(data)
 
         size_ = int(data[array_indices["size"]])
         block = int(data[array_indices["offset"]])
@@ -43,24 +52,49 @@ def process_block_trace(filename):
         start_index = math.floor((block * 512) / 4096)
         end_index = math.floor(( (block * 512) + (size_ * 512) - 1) / 4096)
 
+        # print(start_index, end_index)
         if start_index == end_index:
             block_list = deepcopy(data)
-            
-        # for val in range(start_index, end_index):
-            # print(val, end=" ") 
+            block_list[array_indices["offset"]] = start_index
+            if block_list[array_indices["type"]] == "0":
+                block_list[array_indices["type"]] = "r"
+            else:
+                block_list[array_indices["type"]] = "w"
 
-        print()
-        if value == 11:
-            break
+            block_list.pop(array_indices["size"])            
+            op_csv.writerow(block_list)
+            # print(block_list)
 
+        else:    
+            for val in range(start_index, end_index+1):
+                block_list = deepcopy(data)
+                block_list[array_indices["offset"]] = val
+                if block_list[array_indices["type"]] == "0":
+                    block_list[array_indices["type"]] = "r"
+                else:
+                    block_list[array_indices["type"]] = "w"
+                block_list.pop(array_indices["size"])
+                op_csv.writerow(block_list)
+                # print(block_list)
+        
+        # print("###################")
+
+        # if value == 20:
+        #     break
+
+    logging.info("Finished file: {}".format(filename))
 
 def convert_to_4k(input_folder):
     
+    load_logging_config()
     ip_string = "{}/2*".format(input_folder)
     files_list = glob.glob(ip_string)
     print(files_list)
-    for file_ in files_list:
-        process_block_trace(filename=file_)
+    # for file_ in files_list:
+    #     process_block_trace(filename=file_)
+        # break
+    with Pool(2) as p:
+        p.map(process_block_trace, files_list)
 
 if __name__ == "__main__":
     import argparse
