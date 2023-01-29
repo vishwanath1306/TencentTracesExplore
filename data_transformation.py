@@ -121,15 +121,31 @@ def write_only_cvv(filename):
         if value % 1000000 == 0:
             logging.info(f"Completed lines: {value} from {filename}")
         
-        curr_cvv = data[array_indices['volume_id']]
+        curr_cvv = int(data[array_indices['volume_id']])
         if curr_cvv not in curr_cvv_set:            
             op_file_fd.write(f"{curr_cvv}\n")
             curr_cvv_set.add(curr_cvv)
-    
+      
     elapsed_time = round(time.time() * 1000) - curr_time
     logging.info(f"Finished file: {filename} in {elapsed_time} seconds")
 
-    
+
+def get_cvv_values(ip_folder, op_filename):
+    ip_string = "{}/2*".format(ip_folder)
+    files_list = glob.glob(ip_string)
+    cvv_set = set()
+    for file_ in files_list:
+        file_fd = open(file_, 'r')
+        value = file_fd.readlines()
+        int_value = [int(x) for x in value]
+        del value
+        set_value = set(int_value)
+        cvv_set.update(set_value)
+
+    op_file_fd = open(op_filename, 'w')
+    val_list = [f"{str(x)}\n" for x in cvv_set]
+    op_file_fd.writelines(val_list)
+
 
 def process_block_trace_cvv_split(filename):
     curr_time = round(time.time() *1000)
@@ -179,7 +195,7 @@ if __name__ == "__main__":
 
     argument_parser.add_argument("ip_folder", help="Enter the folder in which you want to read the input files.")
     argument_parser.add_argument("op_folder", help="Enter the output folder for the trace files.")
-    argument_parser.add_argument("operation", help="Enter the operation: 0 for block; 1 for cvv;")
+    argument_parser.add_argument("operation", help="Enter the operation: 0 for block; 1 for cvv; 2 for extracting cvv")
 
     args = argument_parser.parse_args()
 
@@ -191,6 +207,8 @@ if __name__ == "__main__":
         convert_to_4k(input_folder=ip_folder)
     elif operation == 1:
         convert_to_cvv(input_folder=ip_folder)
+    elif operation == 2:
+        get_cvv_values(ip_folder=ip_folder, op_filename=op_folder)
     else:
         print("Wrong operation")
     

@@ -15,12 +15,15 @@ def get_array_indices():
 
     return trace_dict
 
+
 def get_split_file_name(ip_file):
     splitted_string = ip_file.split('/')[-1]
     return splitted_string
 
+
 def create_cvv_fd():
     return "Hello World"
+
 
 def get_op_file_name(ip_file, op_folder):
     splitted_string = ip_file.split('/')[-1]
