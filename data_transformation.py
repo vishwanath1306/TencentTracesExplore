@@ -188,7 +188,7 @@ def convert_to_cvv(input_folder, output_folder):
         actual_file_name.append(get_split_file_name(file_))
     
     cvv_dict = create_op_folder(output_folder)
-    input_list = [(cvv_dict, e) for e in files_list[:2]]
+    input_list = [(cvv_dict, e) for e in files_list]
 
     with Pool(4) as p: 
         p.map(process_block_trace_cvv_split, input_list)
