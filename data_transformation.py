@@ -10,9 +10,12 @@ from util import (
     get_array_indices, 
     load_logging_config, 
     get_op_file_name,  
-    create_cvv_fd,
-    get_split_file_name
+    get_split_file_name,
+    create_op_folder,
+    get_write_file_fd
 )
+
+CVV_DICT = dict()
 
 
 '''
@@ -147,46 +150,57 @@ def get_cvv_values(ip_folder, op_filename):
     op_file_fd.writelines(val_list)
 
 
-def process_block_trace_cvv_split(filename):
+def process_block_trace_cvv_split(input_list):
+    cvv_dict, filename = input_list
+    print(cvv_dict.keys(), filename)
+    cvv_fd = get_write_file_fd(cvv_dict=cvv_dict, actual_file=get_split_file_name(filename))
+    
     curr_time = round(time.time() *1000)
     file_fd = open(filename, 'r')
     csv_reader =  csv.reader(file_fd)
-    cvv_fd_dict = dict()
-    curr_file_name = get_split_file_name(filename)
-    print(curr_file_name)
+    
     array_indices = get_array_indices()
     for value, data in enumerate(csv_reader):
-        curr_cvv = data[array_indices['volume_id']]
-        print(curr_cvv)
-    #     if value % 1000000 == 0:
-    #         logging.info("Completed file: {} and {} rows".format(filename, value))
+        curr_cvv = str(data[array_indices['volume_id']])
+        if value % 1000000 == 0:
+            logging.info("Completed file: {} and {} rows".format(filename, value))
         
-    #     curr_cvv = data[array_indices['volume_id']]
-    #     if curr_cvv not in cvv_fd_dict.keys():
-    #         try: 
-    #             cvv_fd_dict[curr_cvv] = create_cvv_fd(op_folder, curr_cvv, curr_file_name)    
-    #         except FileExistsError as e:
-    #             pass
+        # curr_cvv = data[array_indices['volume_id']]
+        # if curr_cvv not in cvv_fd_dict.keys():
+        #     try: 
+        #         cvv_fd_dict[curr_cvv] = create_cvv_fd(op_folder, curr_cvv, curr_file_name)    
+        #     except FileExistsError as e:
+        #         pass
 
-    #     cvv_fd_dict[curr_cvv].writerow(data)
-    #     if(value == 3000000):
-    #         break
-    # elapsed_time = round(time.time() * 1000) - curr_time
-    # logging.info(f"Finished file: {filename} in {elapsed_time} seconds")
+        cvv_fd[curr_cvv].writerow(data)
+
+    elapsed_time = round(time.time() * 1000) - curr_time
+    logging.info(f"Finished file: {filename} in {elapsed_time} seconds")
 
 
-def convert_to_cvv(input_folder):
+def convert_to_cvv(input_folder, output_folder):
     load_logging_config()
     ip_string = "{}/2*".format(input_folder)
     files_list = glob.glob(ip_string)
 
-    with Pool(10) as p:
-        p.map(write_only_cvv, files_list)
+    actual_file_name = []
+    for file_ in files_list:
+        actual_file_name.append(get_split_file_name(file_))
+    
+    cvv_dict = create_op_folder(output_folder)
+    input_list = [(cvv_dict, e) for e in files_list[:2]]
+
+    with Pool(4) as p: 
+        p.map(process_block_trace_cvv_split, input_list)
+    
     # process_block_trace_cvv_split(files_list[0])
     # write_only_cvv(files_list[0])
     # with Pool(1) as p:
     #     p.map(process_block_trace_cvv_split, files_list)
     # process_block_trace_cvv_split(files_list[0])
+
+    # with Pool(10) as p:
+    #     p.map(write_only_cvv, files_list)
 
 
 if __name__ == "__main__":
@@ -206,7 +220,7 @@ if __name__ == "__main__":
     if operation == 0:
         convert_to_4k(input_folder=ip_folder)
     elif operation == 1:
-        convert_to_cvv(input_folder=ip_folder)
+        convert_to_cvv(input_folder=ip_folder, output_folder=op_folder)
     elif operation == 2:
         get_cvv_values(ip_folder=ip_folder, op_filename=op_folder)
     else:
